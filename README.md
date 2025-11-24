@@ -24,9 +24,10 @@ For any questions or inquiries, please contact us:
 ### 🏢 Office Location
 
 **Flinters Vietnam Co., Ltd.**  
-Room 1801, 18th Floor, CMC Tower  
-Duy Tan Street, Dich Vong Hau Ward  
-Cau Giay District, Hanoi, Vietnam
+Room 2402-2407, 24th Floor  
+Discovery Complex Building, 302 Cau Giay Street  
+Dich Vong Ward, Cau Giay District  
+Hanoi, Vietnam
 
 ---
 
