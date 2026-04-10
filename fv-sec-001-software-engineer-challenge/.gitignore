@@ -1,2 +1,8 @@
-generator
 ad_data.csv
+ad_data.csv.zip
+buckets/
+results_constrained/
+*.log
+.context/
+Gemfile.bak
+generator

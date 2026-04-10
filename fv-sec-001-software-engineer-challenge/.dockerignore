@@ -1,0 +1,9 @@
+.git
+ad_data.csv
+ad_data.csv.zip
+results/
+spec/
+docs/
+.context/
+benchmark.log
+*.log

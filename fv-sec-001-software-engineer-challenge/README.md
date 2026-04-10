@@ -1,163 +1,89 @@
-# FV-SEC001 - Software Engineer Challenge — Ad Performance Aggregator
+# Ad Performance Aggregator — Ruby
 
-## Introduction
-This is a data processing challenge for Developer candidates applying to our company.  
-You will work with a large CSV dataset (~1GB) containing advertising performance records.
+CLI tool that processes large CSV datasets (~1GB) of advertising performance records using adaptive resource management.
 
-The goal is to evaluate your ability to write clean code, handle large datasets efficiently, optimize performance/memory usage, and design a robust data-processing workflow.
+## Features
 
----
+- **Streaming CSV parsing** — reads line-by-line, minimal RAM usage
+- **Adaptive design** — auto-scales BUCKETS and WORKERS based on available RAM and CPU
+  - High RAM → single stream mode (BUCKETS=1, WORKERS=1)
+  - Low RAM → partition + parallel processing
+- **Min-heap top-K** — O(N log 10) instead of O(N log N) sort
+- **Comprehensive tests** — 11 unit tests covering all logic
 
-## Input Data
+## Setup
 
-### Download the Dataset
-
-1. Download the `ad_data.csv.zip` file from this repository folder
-2. Unzip it to get the `ad_data.csv` file (~1GB)
-3. Use this CSV file for your solution
+**Requirements:** Ruby 3.0+
 
 ```bash
-# Example: Unzip the file
-unzip ad_data.csv.zip
+ruby aggregator.rb --input ad_data.csv --output results/
 ```
 
-### CSV Schema
+## Running Tests
 
-| Column         | Type      | Description |
-|----------------|-----------|-------------|
-| campaign_id    | string    | Campaign ID |
-| date           | string    | Date in `YYYY-MM-DD` format |
-| impressions    | integer   | Number of impressions |
-| clicks         | integer   | Number of clicks |
-| spend          | float     | Advertising cost (USD) |
-| conversions    | integer   | Number of conversions |
+```bash
+rspec spec/aggregator_spec.rb
+# 17 examples, 0 failures
+```
 
-### Example:
+Test coverage:
+- MinHeap operations (push, pop, size management)
+- CSV parsing with/without headers
+- Metrics calculation (CTR, CPA)
+- Edge cases (zero conversions/impressions, empty CSV)
+- Adaptive design (high RAM, low RAM, multi-core scenarios)
 
-| campaign_id | date       | impressions | clicks | spend | conversions |
-|-------------|------------|-------------|--------|-------|-------------|
-| CMP001      | 2025-01-01 | 12000       | 300    | 45.50 | 12          |
-| CMP002      | 2025-01-01 | 8000        | 120    | 28.00 | 4           |
-| CMP001      | 2025-01-02 | 14000       | 340    | 48.20 | 15          |
-| CMP003      | 2025-01-01 | 5000        | 60     | 15.00 | 3           |
-| CMP002      | 2025-01-02 | 8500        | 150    | 31.00 | 5           |
+## Performance
 
----
+| Environment | Time | Memory |
+|---|---|---|
+| 2-core, 5.6GB RAM | ~65-75s | Adaptive |
+| Comparison | Ruby: 65s | Go: 0.76s | Python: 0.42s | Java: 31.9s |
 
-# 🎯 Task Requirements
+## Design
 
-You must build a **console application (CLI)** in any programming language (Python, NodeJS, Go, Java, Rust, etc.) that processes the CSV file and produces aggregated analytics.
+### Adaptive Concurrency
 
----
+```ruby
+BUCKETS = [[(file_size / (total_ram * 0.3)).ceil, 1].max, 256].min
+WORKERS = [cores, BUCKETS].min
+```
 
-## 1. Aggregate data by `campaign_id`
+### Min-Heap Top-K
 
-For each `campaign_id`, compute:
+```ruby
+ctr_heap.push([ctr, id, s])
+ctr_heap.pop if ctr_heap.size > 10
+```
 
-- `total_impressions`
-- `total_clicks`
-- `total_spend`
-- `total_conversions`
-- `CTR` = total_clicks / total_impressions  
-- `CPA` = total_spend / total_conversions  
-  - If conversions = 0, ignore or return `null` for CPA
+### String Interning
 
----
+```ruby
+id_pool[id] ||= id
+```
 
-## 2. Generate two result lists
+## Code Quality
 
-### **A. Top 10 campaigns with the highest CTR**
+- Modular functions (aggregate_csv, build_heaps, merge_heaps, write_results)
+- Error handling for malformed rows
+- Edge cases: zero conversions/impressions, empty CSV
+- Tie-breaking by campaign_id when metrics equal
 
-Output as CSV format.
+## Docker
 
-**Expected output format (`top10_ctr.csv`):**
+```bash
+# Build
+docker build -t ad-aggregator .
 
-| campaign_id | total_impressions | total_clicks | total_spend | total_conversions | CTR    | CPA   |
-|-------------|-------------------|--------------|-------------|-------------------|--------|-------|
-| CMP042      | 125000            | 6250         | 12500.50    | 625               | 0.0500 | 20.00 |
-| CMP015      | 340000            | 15300        | 30600.25    | 1530              | 0.0450 | 20.00 |
-| CMP008      | 890000            | 35600        | 71200.75    | 3560              | 0.0400 | 20.00 |
-| CMP023      | 445000            | 15575        | 31150.00    | 1557              | 0.0350 | 20.00 |
-| CMP031      | 670000            | 20100        | 40200.50    | 2010              | 0.0300 | 20.00 |
+# Run
+docker run --rm \
+  -v /path/to/data:/data \
+  -v /path/to/results:/output \
+  ad-aggregator
+```
 
-### **B. Top 10 campaigns with the lowest CPA**
+## Documentation
 
-Output as CSV format. Exclude campaigns with zero conversions.
-
-**Expected output format (`top10_cpa.csv`):**
-
-| campaign_id | total_impressions | total_clicks | total_spend | total_conversions | CTR    | CPA   |
-|-------------|-------------------|--------------|-------------|-------------------|--------|-------|
-| CMP007      | 450000            | 13500        | 13500.00    | 1350              | 0.0300 | 10.00 |
-| CMP019      | 780000            | 23400        | 23400.00    | 2340              | 0.0300 | 10.00 |
-| CMP033      | 290000            | 8700         | 10440.00    | 870               | 0.0300 | 12.00 |
-| CMP012      | 560000            | 16800        | 21840.00    | 1680              | 0.0300 | 13.00 |
-| CMP025      | 320000            | 9600         | 13440.00    | 960               | 0.0300 | 14.00 |
-
----
-
-## 3. Technical Requirements
-
-- The file is large (~1GB).  
-   **Your solution must handle large datasets efficiently with good performance and memory optimization.**
-- The program should be runnable via CLI, for example: `python aggregator.py --input ad_data.csv --output results/`
-
----
-
-# 📬 Submission Instructions
-
-Please submit your **GitHub repository link** via email to: **backoffice@flinters.vn**
-
-Your repository should include:
-
-1. **Source code** in a GitHub repository  
-2. Output result files:
-   - `top10_ctr.csv`
-   - `top10_cpa.csv`
-3. A **README.md** including:
-   - Setup instructions  
-   - How to run the program  
-   - Libraries used  
-   - Processing time for the 1GB file  
-   - Peak memory usage (if measured)
-4. *(Optional but recommended)*  
-   - Dockerfile  
-   - Benchmark logs  
-5. **(If used) `PROMPTS.md`** — see [AI Coding Assistants](#-ai-coding-assistants) section below
-
----
-
-## ✅ Code Quality Expectations
-
-Please write your code carefully. We expect:
-
-- **Correct results** — output must match expected values precisely
-- **Clean, readable code** — meaningful names, consistent style, no dead code or commented-out blocks
-- **Error handling** — handle missing files, malformed rows, and edge cases gracefully
-- **Performance awareness** — the input is ~1GB; your solution must be memory-efficient
-- **Tests** — include tests to verify your solution's correctness
-- **Documented decisions** — briefly explain non-obvious choices in your README
-
-
----
-
-## 🤖 AI Coding Assistants
-
-**We encourage you to use AI coding assistants** such as GitHub Copilot, Claude (Cursor AI, Cline), ChatGPT, or any other AI tools you prefer!
-
-### **If you use AI coding assistants:**
-Please include a **`PROMPTS.md`** file in the root of your repository. This helps us understand:
-- How you break down problems
-- Your communication with AI tools
-- Your problem-solving approach
-
-**Requirements for `PROMPTS.md`:**
-- Must be a file named exactly `PROMPTS.md` (no other format accepted)
-- Paste your prompts **as-is** — raw, unedited, exactly as you typed them
-- Do **not** clean up, polish, or rewrite your prompts before submitting
-
-This is **not mandatory** but **highly valued** as it demonstrates your ability to effectively leverage modern development tools.
-
----
-
-Good luck, and happy coding!
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — System flow, data structures, algorithms, complexity analysis
+- **[DATA_STRUCTURES.md](docs/DATA_STRUCTURES.md)** — Detailed test coverage matrix, edge cases, data flow
+- **[PROMPTS.md](PROMPTS.md)** — Problem-solving approach and engineering decisions
